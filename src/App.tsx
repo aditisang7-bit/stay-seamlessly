@@ -36,6 +36,8 @@ const App = () => (
             <Route path="/seller" element={<SellerDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/favorites" element={<FavoritesPage />} />
+            <Route path="/rent/pune" element={<PunePage />} />
+            <Route path="/rent/pune/:area" element={<AreaPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
