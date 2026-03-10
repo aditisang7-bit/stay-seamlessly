@@ -29,11 +29,43 @@ const LandingPage = () => {
     navigate(`/properties?q=${encodeURIComponent(searchQuery)}`);
   };
 
+  const homeFaqs = [
+    { question: 'How much does it cost to rent an apartment in Pune?', answer: 'Rent in Pune varies by area. Budget areas like Wakad offer 1BHK from ₹7,000/month. Premium areas like Baner and Viman Nagar range ₹12,000–₹35,000/month.' },
+    { question: 'Which area in Pune is best for IT professionals?', answer: 'Hinjewadi, Kharadi, and Wakad are top choices due to proximity to Rajiv Gandhi Infotech Park, EON IT Park, and other tech hubs.' },
+    { question: 'How can I book a rental on RentMeAbhi?', answer: 'Browse listings, select dates, and pay securely via Razorpay. Your booking is confirmed instantly.' },
+  ];
+
+  const jsonLd = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'LocalBusiness',
+      name: 'RentMeAbhi',
+      description: 'Pune\'s trusted rental marketplace for apartments, PGs, and short-stay homes near IT parks.',
+      address: { '@type': 'PostalAddress', addressLocality: 'Pune', addressRegion: 'Maharashtra', addressCountry: 'IN' },
+      url: 'https://stay-seamlessly.lovable.app',
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: homeFaqs.map(f => ({
+        '@type': 'Question',
+        name: f.question,
+        acceptedAnswer: { '@type': 'Answer', text: f.answer },
+      })),
+    },
+  ];
+
   return (
     <div className="min-h-screen">
+      <SEOHead
+        title="Apartments for Rent in Pune | RentMeAbhi"
+        description="Find affordable apartments, PGs, and short-stay homes for rent in Pune near IT parks. Verified listings with instant booking. Trusted by renters across Pune."
+        jsonLd={jsonLd}
+      />
+
       {/* Hero */}
       <section className="relative flex min-h-[70vh] items-center justify-center overflow-hidden">
-        <img src={heroImage} alt="Luxury rental" className="absolute inset-0 h-full w-full object-cover" />
+        <img src={heroImage} alt="Luxury rental property in Pune" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0" style={{ background: 'var(--gradient-hero)' }} />
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -42,22 +74,31 @@ const LandingPage = () => {
           className="relative z-10 mx-auto max-w-2xl px-4 text-center"
         >
           <h1 className="font-heading text-4xl font-extrabold tracking-tight text-primary-foreground md:text-6xl">
-            Find your next<br />perfect stay
+            Find your next<br />perfect stay in Pune
           </h1>
           <p className="mt-4 text-lg text-primary-foreground/80">
-            Discover unique homes and experiences across India
+            Find a peaceful home in Pune after a long workday. Trusted by renters across Pune.
           </p>
           <form onSubmit={handleSearch} className="mt-8 flex items-center gap-2 rounded-full bg-background p-2 shadow-elevated">
             <Search className="ml-3 h-5 w-5 text-muted-foreground" />
             <Input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Where do you want to go?"
+              placeholder="Search Hinjewadi, Kharadi, Baner..."
               className="flex-1 border-0 bg-transparent focus-visible:ring-0"
             />
             <Button type="submit" className="rounded-full px-6">Search</Button>
           </form>
         </motion.div>
+      </section>
+
+      {/* Trust Signals */}
+      <section className="border-b bg-secondary/30 py-6">
+        <div className="container mx-auto flex flex-wrap items-center justify-center gap-8 px-4 text-sm text-muted-foreground">
+          <span className="flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /> Verified Properties</span>
+          <span className="flex items-center gap-2"><Star className="h-4 w-4 text-primary" /> Trusted by Renters Across Pune</span>
+          <span className="flex items-center gap-2"><Users className="h-4 w-4 text-primary" /> Secure Razorpay Payments</span>
+        </div>
       </section>
 
       {/* Featured */}
@@ -96,19 +137,39 @@ const LandingPage = () => {
         )}
       </section>
 
+      {/* Pune Areas */}
+      <section className="bg-secondary/30 py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="mb-2 font-heading text-2xl font-bold">Explore Pune Areas</h2>
+          <p className="mb-8 text-muted-foreground">Find rentals near your workplace</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {PUNE_AREAS.map(area => (
+              <Link key={area.slug} to={`/rent/pune/${area.slug}`}
+                className="group flex items-center justify-between rounded-xl border bg-card p-4 transition hover:shadow-card-hover">
+                <div>
+                  <h3 className="font-heading font-semibold">{area.name}</h3>
+                  <p className="text-sm text-muted-foreground">{area.avgRent}</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:text-primary group-hover:translate-x-1" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
-      <section className="bg-secondary/50">
-        <div className="container mx-auto grid gap-8 px-4 py-16 md:grid-cols-2">
+      <section className="py-16">
+        <div className="container mx-auto grid gap-8 px-4 md:grid-cols-2">
           <div className="rounded-2xl bg-gradient-to-br from-primary to-primary-glow p-8 text-primary-foreground">
-            <h3 className="font-heading text-2xl font-bold">Earn from your rentals</h3>
-            <p className="mt-3 text-primary-foreground/80">List your property and start earning. Join thousands of hosts on RentMeAbhi.</p>
+            <h3 className="font-heading text-2xl font-bold">Earn Passive Income From Your Property in Pune</h3>
+            <p className="mt-3 text-primary-foreground/80">List your property and start earning. Join verified hosts on RentMeAbhi.</p>
             <Button variant="secondary" className="mt-6" onClick={() => navigate('/auth?mode=signup')}>
               Become a Host <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
           <div className="rounded-2xl border bg-card p-8">
-            <h3 className="font-heading text-2xl font-bold">Find your perfect stay</h3>
-            <p className="mt-3 text-muted-foreground">Browse verified properties with instant booking and secure payments.</p>
+            <h3 className="font-heading text-2xl font-bold">Find Affordable Rentals Near You in Pune</h3>
+            <p className="mt-3 text-muted-foreground">Browse verified properties near IT parks with instant booking and secure payments.</p>
             <Button className="mt-6" onClick={() => navigate('/properties')}>
               Browse Properties <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -116,15 +177,21 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t bg-background">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-            <p className="font-heading font-bold">RentMeAbhi</p>
-            <p className="text-sm text-muted-foreground">© 2026 RentMeAbhi. All rights reserved.</p>
-          </div>
+      {/* WhatsApp CTA */}
+      <section className="bg-secondary/50 py-12">
+        <div className="container mx-auto flex flex-col items-center gap-4 px-4 text-center">
+          <h2 className="font-heading text-xl font-bold">Get New Rental Listings in Pune on WhatsApp</h2>
+          <p className="text-muted-foreground">Follow the RentMeAbhi by Abhijeet Construction channel</p>
+          <WhatsAppCTA />
         </div>
-      </footer>
+      </section>
+
+      {/* FAQ */}
+      <section className="container mx-auto px-4">
+        <FAQSection faqs={homeFaqs} />
+      </section>
+
+      <Footer />
     </div>
   );
 };
