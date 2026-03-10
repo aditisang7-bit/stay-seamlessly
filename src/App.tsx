@@ -13,6 +13,8 @@ import BuyerDashboard from "@/pages/BuyerDashboard";
 import SellerDashboard from "@/pages/SellerDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import FavoritesPage from "@/pages/FavoritesPage";
+import PunePage from "@/pages/PunePage";
+import AreaPage from "@/pages/AreaPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +36,8 @@ const App = () => (
             <Route path="/seller" element={<SellerDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/favorites" element={<FavoritesPage />} />
+            <Route path="/rent/pune" element={<PunePage />} />
+            <Route path="/rent/pune/:area" element={<AreaPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
