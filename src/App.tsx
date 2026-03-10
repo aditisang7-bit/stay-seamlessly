@@ -13,6 +13,8 @@ import BuyerDashboard from "@/pages/BuyerDashboard";
 import SellerDashboard from "@/pages/SellerDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import FavoritesPage from "@/pages/FavoritesPage";
+import PunePage from "@/pages/PunePage";
+import AreaPage from "@/pages/AreaPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
