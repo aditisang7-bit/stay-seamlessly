@@ -3,11 +3,16 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import PropertyCard from '@/components/PropertyCard';
 import { Button } from '@/components/ui/button';
-import { Search, ArrowRight } from 'lucide-react';
+import { Search, ArrowRight, Shield, Star, Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import heroImage from '@/assets/hero-property.jpg';
 import { motion } from 'framer-motion';
+import SEOHead from '@/components/SEOHead';
+import FAQSection from '@/components/FAQSection';
+import WhatsAppCTA from '@/components/WhatsAppCTA';
+import Footer from '@/components/Footer';
+import { PUNE_AREAS } from '@/data/puneAreas';
 
 const LandingPage = () => {
   const [properties, setProperties] = useState<any[]>([]);
