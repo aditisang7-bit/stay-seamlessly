@@ -10,6 +10,9 @@ import { format, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import SEOHead from '@/components/SEOHead';
+import ShareButtons from '@/components/ShareButtons';
+import Footer from '@/components/Footer';
 
 const PropertyDetailPage = () => {
   const { id } = useParams<{ id: string }>();
