@@ -113,8 +113,30 @@ const PropertyDetailPage = () => {
 
   const images = property.images?.length > 0 ? property.images : ['/placeholder.svg'];
 
+  const mapQuery = encodeURIComponent(`${property.location}, Pune, India`);
+  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=73.7%2C18.4%2C74.0%2C18.7&layer=mapnik&marker=18.55%2C73.85`;
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: property.title,
+    description: property.description || `Rental property in ${property.location}`,
+    image: images[0],
+    offers: {
+      '@type': 'Offer',
+      price: property.price,
+      priceCurrency: 'INR',
+      availability: 'https://schema.org/InStock',
+    },
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={`${property.title} | Rent in ${property.location} | RentMeAbhi`}
+        description={`Rent ${property.title} in ${property.location} for ₹${property.price}/night. ${property.amenities?.slice(0, 3).join(', ')}. Book instantly on RentMeAbhi.`}
+        jsonLd={jsonLd}
+      />
       <div className="container mx-auto px-4 py-8">
         {/* Title */}
         <h1 className="mb-2 font-heading text-2xl font-bold md:text-3xl">{property.title}</h1>
@@ -177,6 +199,28 @@ const PropertyDetailPage = () => {
                 </div>
               </div>
             )}
+
+            {/* Map */}
+            <div>
+              <h2 className="mb-3 font-heading text-lg font-semibold">Location</h2>
+              <div className="overflow-hidden rounded-xl border">
+                <iframe
+                  title={`Map of ${property.location}`}
+                  width="100%"
+                  height="300"
+                  src={`https://maps.google.com/maps?q=${mapQuery}&output=embed`}
+                  className="border-0"
+                  loading="lazy"
+                />
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">{property.location}</p>
+            </div>
+
+            {/* Share */}
+            <div>
+              <h3 className="mb-3 font-heading font-semibold">Share this property</h3>
+              <ShareButtons title={`${property.title} - Rent in ${property.location} | RentMeAbhi`} />
+            </div>
           </div>
 
           {/* Booking card */}
@@ -238,6 +282,7 @@ const PropertyDetailPage = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };
