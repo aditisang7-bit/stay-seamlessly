@@ -21,6 +21,9 @@ export type Database = {
           end_date: string
           id: string
           property_id: string
+          reference_id: string | null
+          rent_amount: number | null
+          security_deposit: number | null
           start_date: string
           status: string
           total_price: number
@@ -31,6 +34,9 @@ export type Database = {
           end_date: string
           id?: string
           property_id: string
+          reference_id?: string | null
+          rent_amount?: number | null
+          security_deposit?: number | null
           start_date: string
           status?: string
           total_price: number
@@ -41,6 +47,9 @@ export type Database = {
           end_date?: string
           id?: string
           property_id?: string
+          reference_id?: string | null
+          rent_amount?: number | null
+          security_deposit?: number | null
           start_date?: string
           status?: string
           total_price?: number
@@ -198,13 +207,19 @@ export type Database = {
           id: string
           images: string[] | null
           location: string
+          maintenance_fee: number | null
           max_guests: number | null
+          min_rental_months: number | null
+          monthly_rent: number | null
           price: number
           rating: number | null
           review_count: number | null
+          security_deposit: number | null
           seller_id: string
           title: string
           updated_at: string
+          verification_status: string
+          video_url: string | null
         }
         Insert: {
           amenities?: string[] | null
@@ -213,13 +228,19 @@ export type Database = {
           id?: string
           images?: string[] | null
           location: string
+          maintenance_fee?: number | null
           max_guests?: number | null
+          min_rental_months?: number | null
+          monthly_rent?: number | null
           price?: number
           rating?: number | null
           review_count?: number | null
+          security_deposit?: number | null
           seller_id: string
           title: string
           updated_at?: string
+          verification_status?: string
+          video_url?: string | null
         }
         Update: {
           amenities?: string[] | null
@@ -228,15 +249,56 @@ export type Database = {
           id?: string
           images?: string[] | null
           location?: string
+          maintenance_fee?: number | null
           max_guests?: number | null
+          min_rental_months?: number | null
+          monthly_rent?: number | null
           price?: number
           rating?: number | null
           review_count?: number | null
+          security_deposit?: number | null
           seller_id?: string
           title?: string
           updated_at?: string
+          verification_status?: string
+          video_url?: string | null
         }
         Relationships: []
+      }
+      property_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          document_url: string
+          id: string
+          property_id: string
+          seller_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          document_url: string
+          id?: string
+          property_id: string
+          seller_id: string
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          document_url?: string
+          id?: string
+          property_id?: string
+          seller_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_documents_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reviews: {
         Row: {
