@@ -1,36 +1,62 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, Users, Home, MessageSquare, Calendar } from 'lucide-react';
+import { BarChart3, Home, MessageSquare, Calendar, ShieldCheck, CreditCard, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
 const AdminDashboard = () => {
-  const [stats, setStats] = useState({ users: 0, properties: 0, bookings: 0, revenue: 0 });
+  const [stats, setStats] = useState({ properties: 0, bookings: 0, revenue: 0, pendingVerification: 0 });
   const [complaints, setComplaints] = useState<any[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [pendingProps, setPendingProps] = useState<any[]>([]);
+  const [docsByProp, setDocsByProp] = useState<Record<string, any[]>>({});
 
-  useEffect(() => {
-    const fetch = async () => {
-      const [propsRes, bookingsRes, complaintsRes] = await Promise.all([
-        supabase.from('properties').select('*'),
-        supabase.from('bookings').select('*'),
-        supabase.from('complaints').select('*, properties(title)'),
-      ]);
+  const fetchData = async () => {
+    const [propsRes, bookingsRes, complaintsRes, paymentsRes] = await Promise.all([
+      supabase.from('properties').select('*'),
+      supabase.from('bookings').select('*, properties(title)'),
+      supabase.from('complaints').select('*, properties(title)'),
+      supabase.from('payments').select('*, bookings(reference_id, properties(title))'),
+    ]);
 
-      const props = propsRes.data || [];
-      const books = bookingsRes.data || [];
-      const comps = complaintsRes.data || [];
-      const revenue = books.filter(b => b.status === 'confirmed').reduce((s, b) => s + (b.total_price || 0), 0);
+    const props = propsRes.data || [];
+    const books = bookingsRes.data || [];
+    const comps = complaintsRes.data || [];
+    const pays = paymentsRes.data || [];
 
-      setProperties(props);
-      setBookings(books);
-      setComplaints(comps);
-      setStats({ users: 0, properties: props.length, bookings: books.length, revenue });
-    };
-    fetch();
-  }, []);
+    const pending = props.filter(p => p.verification_status === 'pending');
+    const revenue = books.filter(b => b.status === 'confirmed').reduce((s, b) => s + (b.total_price || 0), 0);
+
+    setProperties(props);
+    setBookings(books);
+    setComplaints(comps);
+    setPayments(pays);
+    setPendingProps(pending);
+    setStats({ properties: props.length, bookings: books.length, revenue, pendingVerification: pending.length });
+
+    // Fetch docs for pending properties
+    if (pending.length > 0) {
+      const { data: docs } = await supabase.from('property_documents').select('*')
+        .in('property_id', pending.map(p => p.id));
+      const grouped: Record<string, any[]> = {};
+      (docs || []).forEach(d => {
+        if (!grouped[d.property_id]) grouped[d.property_id] = [];
+        grouped[d.property_id].push(d);
+      });
+      setDocsByProp(grouped);
+    }
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
+  const updateVerification = async (id: string, status: 'approved' | 'rejected') => {
+    await supabase.from('properties').update({ verification_status: status }).eq('id', id);
+    toast.success(`Property ${status}`);
+    fetchData();
+  };
 
   const resolveComplaint = async (id: string) => {
     await supabase.from('complaints').update({ status: 'resolved' }).eq('id', id);
@@ -48,7 +74,7 @@ const AdminDashboard = () => {
             { label: 'Total Revenue', value: `₹${stats.revenue.toLocaleString()}`, icon: BarChart3 },
             { label: 'Properties', value: stats.properties, icon: Home },
             { label: 'Bookings', value: stats.bookings, icon: Calendar },
-            { label: 'Complaints', value: complaints.length, icon: MessageSquare },
+            { label: 'Pending Verification', value: stats.pendingVerification, icon: ShieldCheck },
           ].map(s => (
             <div key={s.label} className="rounded-xl border bg-card p-5">
               <div className="flex items-center gap-3">
@@ -62,12 +88,47 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        <Tabs defaultValue="complaints">
+        <Tabs defaultValue="verification">
           <TabsList className="mb-6">
+            <TabsTrigger value="verification" className="gap-2"><ShieldCheck className="h-4 w-4" />Verification</TabsTrigger>
             <TabsTrigger value="complaints" className="gap-2"><MessageSquare className="h-4 w-4" />Complaints</TabsTrigger>
-            <TabsTrigger value="properties" className="gap-2"><Home className="h-4 w-4" />Properties</TabsTrigger>
+            <TabsTrigger value="payments" className="gap-2"><CreditCard className="h-4 w-4" />Payments</TabsTrigger>
             <TabsTrigger value="bookings" className="gap-2"><Calendar className="h-4 w-4" />Bookings</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="verification">
+            {pendingProps.length === 0 ? (
+              <div className="rounded-2xl border border-dashed p-12 text-center text-muted-foreground">No properties pending verification</div>
+            ) : (
+              <div className="space-y-4">
+                {pendingProps.map(p => (
+                  <div key={p.id} className="rounded-xl border p-4">
+                    <div className="flex items-center gap-4">
+                      <img src={p.images?.[0] || '/placeholder.svg'} alt="" className="h-20 w-20 rounded-lg object-cover" />
+                      <div className="flex-1">
+                        <p className="font-heading font-semibold">{p.title}</p>
+                        <p className="text-sm text-muted-foreground">{p.location} · ₹{(p.monthly_rent || p.price)?.toLocaleString()}/month</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => updateVerification(p.id, 'approved')}>Approve</Button>
+                        <Button size="sm" variant="destructive" onClick={() => updateVerification(p.id, 'rejected')}>Reject</Button>
+                      </div>
+                    </div>
+                    {docsByProp[p.id]?.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {docsByProp[p.id].map(d => (
+                          <a key={d.id} href={d.document_url} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary">
+                            <Eye className="h-3 w-3" /> {d.document_type}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
           <TabsContent value="complaints">
             {complaints.length === 0 ? (
@@ -90,18 +151,23 @@ const AdminDashboard = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="properties">
-            <div className="space-y-4">
-              {properties.map(p => (
-                <div key={p.id} className="flex items-center gap-4 rounded-xl border p-4">
-                  <img src={p.images?.[0] || '/placeholder.svg'} alt="" className="h-16 w-16 rounded-lg object-cover" />
-                  <div>
-                    <p className="font-heading font-semibold">{p.title}</p>
-                    <p className="text-sm text-muted-foreground">{p.location} · ₹{p.price?.toLocaleString()}/night</p>
+          <TabsContent value="payments">
+            {payments.length === 0 ? (
+              <div className="rounded-2xl border border-dashed p-12 text-center text-muted-foreground">No payment records</div>
+            ) : (
+              <div className="space-y-4">
+                {payments.map(p => (
+                  <div key={p.id} className="flex items-center justify-between rounded-xl border p-4">
+                    <div>
+                      <p className="font-heading font-semibold">₹{p.amount?.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">Order: {p.razorpay_order_id || 'N/A'}</p>
+                      {p.razorpay_payment_id && <p className="text-xs text-muted-foreground">Payment: {p.razorpay_payment_id}</p>}
+                    </div>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${p.status === 'completed' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>{p.status}</span>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="bookings">
@@ -109,10 +175,13 @@ const AdminDashboard = () => {
               {bookings.map(b => (
                 <div key={b.id} className="flex items-center justify-between rounded-xl border p-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Booking #{b.id.slice(0, 8)}</p>
-                    <p className="font-heading font-semibold">₹{b.total_price?.toLocaleString()}</p>
+                    <p className="font-heading font-semibold">{b.properties?.title || 'Property'}</p>
+                    <p className="text-xs text-muted-foreground">Ref: {b.reference_id || b.id.slice(0, 8)}</p>
                   </div>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${b.status === 'confirmed' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>{b.status}</span>
+                  <div className="text-right">
+                    <p className="font-heading font-semibold">₹{b.total_price?.toLocaleString()}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${b.status === 'confirmed' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>{b.status}</span>
+                  </div>
                 </div>
               ))}
             </div>
