@@ -5,14 +5,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { MapPin, Star, Users, CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
+import { MapPin, Star, Users, CalendarIcon, ChevronLeft, ChevronRight, Play, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { format, differenceInCalendarMonths, differenceInDays, addMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import SEOHead from '@/components/SEOHead';
 import ShareButtons from '@/components/ShareButtons';
 import Footer from '@/components/Footer';
+import type { DateRange } from 'react-day-picker';
 
 const PropertyDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,74 +24,117 @@ const PropertyDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
-  const [imageIndex, setImageIndex] = useState(0);
+  const [mediaIndex, setMediaIndex] = useState(0);
+  const [showVideo, setShowVideo] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookedRanges, setBookedRanges] = useState<{ from: Date; to: Date }[]>([]);
+  const [bookingResult, setBookingResult] = useState<any>(null);
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchData = async () => {
       const { data } = await supabase.from('properties').select('*').eq('id', id).single();
       if (data) {
         setProperty(data);
         const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', data.seller_id).single();
         setSeller(profile);
+
+        // Fetch booked ranges
+        const { data: bookings } = await supabase
+          .from('bookings')
+          .select('start_date, end_date')
+          .eq('property_id', id!)
+          .in('status', ['confirmed', 'pending']);
+        if (bookings) {
+          setBookedRanges(bookings.map(b => ({ from: new Date(b.start_date), to: new Date(b.end_date) })));
+        }
       }
       setLoading(false);
     };
-    if (id) fetch();
+    if (id) fetchData();
   }, [id]);
 
-  const nights = startDate && endDate ? differenceInDays(endDate, startDate) : 0;
-  const totalPrice = nights > 0 ? nights * (property?.price || 0) : 0;
+  // Calculate monthly rent
+  const calculateRent = () => {
+    if (!startDate || !endDate || !property) return { months: 0, rent: 0, deposit: 0, maintenance: 0, total: 0 };
+    const totalDays = differenceInDays(endDate, startDate);
+    const months = totalDays / 30; // proportional
+    const monthlyRent = property.monthly_rent || property.price || 0;
+    const rent = Math.round(months * monthlyRent);
+    const deposit = property.security_deposit || 0;
+    const maintenance = Math.round(months * (property.maintenance_fee || 0));
+    return { months: Math.round(months * 10) / 10, rent, deposit, maintenance, total: rent + deposit + maintenance };
+  };
+
+  const pricing = calculateRent();
+
+  const isDateBooked = (date: Date) => {
+    return bookedRanges.some(range => date >= range.from && date <= range.to);
+  };
 
   const handleBooking = async () => {
     if (!user) { navigate('/auth'); return; }
-    if (!startDate || !endDate || nights <= 0) { toast.error('Select valid dates'); return; }
+    if (!startDate || !endDate || pricing.total <= 0) { toast.error('Select valid dates'); return; }
 
     setBookingLoading(true);
     try {
-      // Create booking
-      const { data: booking, error: bookingErr } = await supabase.from('bookings').insert({
-        property_id: id!,
-        buyer_id: user.id,
-        start_date: format(startDate, 'yyyy-MM-dd'),
-        end_date: format(endDate, 'yyyy-MM-dd'),
-        total_price: totalPrice,
-        status: 'pending',
-      }).select().single();
-
-      if (bookingErr) throw bookingErr;
-
-      // Create payment record
-      await supabase.from('payments').insert({
-        booking_id: booking.id,
-        amount: totalPrice,
-        status: 'pending',
+      const { data, error } = await supabase.functions.invoke('create-razorpay-order', {
+        body: {
+          property_id: id!,
+          start_date: format(startDate, 'yyyy-MM-dd'),
+          end_date: format(endDate, 'yyyy-MM-dd'),
+          rent_amount: pricing.rent,
+          security_deposit: pricing.deposit,
+          total_amount: pricing.total,
+        },
       });
 
-      // Initialize Razorpay
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      if (data.is_test_mode) {
+        toast.warning('⚠ Razorpay is in TEST MODE. Payments are not real.');
+      }
+
+      // Open Razorpay checkout
       const options = {
-        key: 'rzp_test_S7ebAg6FFxGhPb',
-        amount: totalPrice * 100,
-        currency: 'INR',
+        key: data.key_id,
+        amount: data.amount,
+        currency: data.currency,
         name: 'RentMeAbhi',
         description: `Booking: ${property.title}`,
+        order_id: data.order_id,
         handler: async (response: any) => {
-          await supabase.from('payments').update({
-            razorpay_payment_id: response.razorpay_payment_id,
-            status: 'completed',
-          }).eq('booking_id', booking.id);
+          try {
+            const { data: verifyData, error: verifyErr } = await supabase.functions.invoke('verify-razorpay-payment', {
+              body: {
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                booking_id: data.booking_id,
+              },
+            });
+            if (verifyErr) throw verifyErr;
+            if (verifyData.error) throw new Error(verifyData.error);
 
-          await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', booking.id);
-          toast.success('Booking confirmed! Payment successful.');
-          navigate('/buyer');
+            setBookingResult({
+              reference_id: data.reference_id,
+              payment_id: response.razorpay_payment_id,
+              booking_id: data.booking_id,
+              is_test_mode: verifyData.is_test_mode,
+            });
+
+            toast.success('Booking confirmed! Payment verified.');
+          } catch (e: any) {
+            toast.error('Payment verification failed: ' + e.message);
+          }
         },
         prefill: { email: user.email },
         theme: { color: '#E11D48' },
       };
 
       const rzp = new (window as any).Razorpay(options);
-      rzp.on('payment.failed', () => {
-        toast.error('Payment failed. Please try again.');
+      rzp.on('payment.failed', (resp: any) => {
+        toast.error('Payment failed: ' + resp.error.description);
       });
       rzp.open();
     } catch (err: any) {
@@ -111,10 +155,38 @@ const PropertyDetailPage = () => {
 
   if (!property) return <div className="py-20 text-center text-muted-foreground">Property not found</div>;
 
+  // Booking confirmation screen
+  if (bookingResult) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto max-w-lg px-4 py-16 text-center">
+          <div className="rounded-2xl border bg-card p-8 shadow-card">
+            <ShieldCheck className="mx-auto mb-4 h-16 w-16 text-success" />
+            <h1 className="font-heading text-2xl font-bold">Booking Confirmed!</h1>
+            {bookingResult.is_test_mode && (
+              <div className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-warning/10 p-3 text-sm text-warning">
+                <AlertTriangle className="h-4 w-4" /> Payment processed in TEST MODE
+              </div>
+            )}
+            <div className="mt-6 space-y-3 text-left text-sm">
+              <div className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Reference</span><span className="font-semibold">{bookingResult.reference_id}</span></div>
+              <div className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Payment ID</span><span className="font-mono text-xs">{bookingResult.payment_id}</span></div>
+              <div className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Property</span><span className="font-semibold">{property.title}</span></div>
+              <div className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Move-in</span><span>{startDate && format(startDate, 'MMM dd, yyyy')}</span></div>
+              <div className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Move-out</span><span>{endDate && format(endDate, 'MMM dd, yyyy')}</span></div>
+              <div className="flex justify-between pt-2 font-heading text-lg font-bold"><span>Total Paid</span><span>₹{pricing.total.toLocaleString()}</span></div>
+            </div>
+            <Button className="mt-6 w-full" onClick={() => navigate('/buyer')}>Go to Dashboard</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const images = property.images?.length > 0 ? property.images : ['/placeholder.svg'];
+  const monthlyRent = property.monthly_rent || property.price || 0;
 
   const mapQuery = encodeURIComponent(`${property.location}, Pune, India`);
-  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=73.7%2C18.4%2C74.0%2C18.7&layer=mapnik&marker=18.55%2C73.85`;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -124,7 +196,7 @@ const PropertyDetailPage = () => {
     image: images[0],
     offers: {
       '@type': 'Offer',
-      price: property.price,
+      price: monthlyRent,
       priceCurrency: 'INR',
       availability: 'https://schema.org/InStock',
     },
@@ -134,40 +206,45 @@ const PropertyDetailPage = () => {
     <div className="min-h-screen bg-background">
       <SEOHead
         title={`${property.title} | Rent in ${property.location} | RentMeAbhi`}
-        description={`Rent ${property.title} in ${property.location} for ₹${property.price}/night. ${property.amenities?.slice(0, 3).join(', ')}. Book instantly on RentMeAbhi.`}
+        description={`Rent ${property.title} in ${property.location} for ₹${monthlyRent.toLocaleString()}/month. Book instantly on RentMeAbhi.`}
         jsonLd={jsonLd}
       />
       <div className="container mx-auto px-4 py-8">
-        {/* Title */}
         <h1 className="mb-2 font-heading text-2xl font-bold md:text-3xl">{property.title}</h1>
         <div className="mb-6 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
           <span className="flex items-center gap-1"><Star className="h-4 w-4 fill-foreground text-foreground" /> {property.rating?.toFixed(1) || '0.0'}</span>
           <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {property.location}</span>
           <span className="flex items-center gap-1"><Users className="h-4 w-4" /> Up to {property.max_guests} guests</span>
+          {property.verification_status === 'approved' && (
+            <span className="flex items-center gap-1 text-success"><ShieldCheck className="h-4 w-4" /> Verified</span>
+          )}
         </div>
 
-        {/* Image gallery */}
+        {/* Media gallery */}
         <div className="relative mb-8 aspect-[16/9] overflow-hidden rounded-2xl md:aspect-[2/1]">
-          <img src={images[imageIndex]} alt={property.title} className="h-full w-full object-cover" />
-          {images.length > 1 && (
+          {showVideo && property.video_url ? (
+            <video src={property.video_url} controls className="h-full w-full object-cover" />
+          ) : (
+            <img src={images[mediaIndex]} alt={property.title} className="h-full w-full object-cover" />
+          )}
+          {images.length > 1 && !showVideo && (
             <>
-              <button onClick={() => setImageIndex(i => (i - 1 + images.length) % images.length)} className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-2 backdrop-blur-sm">
+              <button onClick={() => setMediaIndex(i => (i - 1 + images.length) % images.length)} className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-2 backdrop-blur-sm">
                 <ChevronLeft className="h-5 w-5" />
               </button>
-              <button onClick={() => setImageIndex(i => (i + 1) % images.length)} className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-2 backdrop-blur-sm">
+              <button onClick={() => setMediaIndex(i => (i + 1) % images.length)} className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-2 backdrop-blur-sm">
                 <ChevronRight className="h-5 w-5" />
               </button>
-              <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-1.5">
-                {images.map((_: string, i: number) => (
-                  <button key={i} onClick={() => setImageIndex(i)} className={`h-2 w-2 rounded-full transition ${i === imageIndex ? 'bg-primary-foreground' : 'bg-primary-foreground/40'}`} />
-                ))}
-              </div>
             </>
+          )}
+          {property.video_url && (
+            <button onClick={() => setShowVideo(!showVideo)} className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full bg-background/80 px-4 py-2 text-sm font-medium backdrop-blur-sm">
+              <Play className="h-4 w-4" /> {showVideo ? 'Photos' : 'Video'}
+            </button>
           )}
         </div>
 
         <div className="grid gap-8 lg:grid-cols-3">
-          {/* Details */}
           <div className="space-y-6 lg:col-span-2">
             {seller && (
               <div className="flex items-center gap-3 border-b pb-6">
@@ -181,9 +258,33 @@ const PropertyDetailPage = () => {
               </div>
             )}
 
+            {/* Rent details */}
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="rounded-xl border p-4 text-center">
+                <p className="text-xs text-muted-foreground">Monthly Rent</p>
+                <p className="font-heading text-lg font-bold">₹{monthlyRent.toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl border p-4 text-center">
+                <p className="text-xs text-muted-foreground">Deposit</p>
+                <p className="font-heading text-lg font-bold">₹{(property.security_deposit || 0).toLocaleString()}</p>
+              </div>
+              {(property.maintenance_fee || 0) > 0 && (
+                <div className="rounded-xl border p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Maintenance</p>
+                  <p className="font-heading text-lg font-bold">₹{property.maintenance_fee.toLocaleString()}/mo</p>
+                </div>
+              )}
+              {(property.min_rental_months || 0) > 1 && (
+                <div className="rounded-xl border p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Min Period</p>
+                  <p className="font-heading text-lg font-bold">{property.min_rental_months} months</p>
+                </div>
+              )}
+            </div>
+
             <div>
               <h2 className="mb-3 font-heading text-lg font-semibold">About this place</h2>
-              <p className="text-muted-foreground leading-relaxed">{property.description || 'No description provided.'}</p>
+              <p className="leading-relaxed text-muted-foreground">{property.description || 'No description provided.'}</p>
             </div>
 
             {property.amenities?.length > 0 && (
@@ -192,31 +293,22 @@ const PropertyDetailPage = () => {
                 <div className="grid grid-cols-2 gap-3">
                   {property.amenities.map((a: string, i: number) => (
                     <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                      {a}
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary" /> {a}
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Map */}
             <div>
               <h2 className="mb-3 font-heading text-lg font-semibold">Location</h2>
               <div className="overflow-hidden rounded-xl border">
-                <iframe
-                  title={`Map of ${property.location}`}
-                  width="100%"
-                  height="300"
+                <iframe title={`Map of ${property.location}`} width="100%" height="300"
                   src={`https://maps.google.com/maps?q=${mapQuery}&output=embed`}
-                  className="border-0"
-                  loading="lazy"
-                />
+                  className="border-0" loading="lazy" />
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">{property.location}</p>
             </div>
 
-            {/* Share */}
             <div>
               <h3 className="mb-3 font-heading font-semibold">Share this property</h3>
               <ShareButtons title={`${property.title} - Rent in ${property.location} | RentMeAbhi`} />
@@ -227,13 +319,13 @@ const PropertyDetailPage = () => {
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-4 rounded-2xl border p-6 shadow-card">
               <div className="flex items-baseline gap-1">
-                <span className="font-heading text-2xl font-bold">₹{property.price?.toLocaleString()}</span>
-                <span className="text-muted-foreground">/ night</span>
+                <span className="font-heading text-2xl font-bold">₹{monthlyRent.toLocaleString()}</span>
+                <span className="text-muted-foreground">/ month</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">CHECK-IN</label>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">MOVE-IN DATE</label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
@@ -242,12 +334,14 @@ const PropertyDetailPage = () => {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={startDate} onSelect={setStartDate} disabled={d => d < new Date()} className="pointer-events-auto" />
+                      <Calendar mode="single" selected={startDate} onSelect={setStartDate}
+                        disabled={(d) => d < new Date() || isDateBooked(d)}
+                        className="pointer-events-auto" />
                     </PopoverContent>
                   </Popover>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">CHECK-OUT</label>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">MOVE-OUT DATE</label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
@@ -256,27 +350,39 @@ const PropertyDetailPage = () => {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={endDate} onSelect={setEndDate} disabled={d => d <= (startDate || new Date())} className="pointer-events-auto" />
+                      <Calendar mode="single" selected={endDate} onSelect={setEndDate}
+                        disabled={(d) => d <= (startDate || new Date()) || isDateBooked(d)}
+                        className="pointer-events-auto" />
                     </PopoverContent>
                   </Popover>
                 </div>
               </div>
 
-              {nights > 0 && (
+              {pricing.total > 0 && (
                 <div className="space-y-2 border-t pt-4 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">₹{property.price?.toLocaleString()} × {nights} nights</span>
-                    <span>₹{totalPrice.toLocaleString()}</span>
+                    <span className="text-muted-foreground">Rent ({pricing.months} months)</span>
+                    <span>₹{pricing.rent.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between font-heading font-semibold text-lg border-t pt-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Security Deposit</span>
+                    <span>₹{pricing.deposit.toLocaleString()}</span>
+                  </div>
+                  {pricing.maintenance > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Maintenance</span>
+                      <span>₹{pricing.maintenance.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t pt-2 font-heading text-lg font-semibold">
                     <span>Total</span>
-                    <span>₹{totalPrice.toLocaleString()}</span>
+                    <span>₹{pricing.total.toLocaleString()}</span>
                   </div>
                 </div>
               )}
 
-              <Button className="w-full" size="lg" onClick={handleBooking} disabled={bookingLoading || nights <= 0}>
-                {bookingLoading ? 'Processing...' : nights > 0 ? `Book · ₹${totalPrice.toLocaleString()}` : 'Select dates to book'}
+              <Button className="w-full" size="lg" onClick={handleBooking} disabled={bookingLoading || pricing.total <= 0}>
+                {bookingLoading ? 'Processing...' : pricing.total > 0 ? `Book · ₹${pricing.total.toLocaleString()}` : 'Select dates to book'}
               </Button>
             </div>
           </div>

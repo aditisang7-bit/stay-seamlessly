@@ -10,6 +10,7 @@ interface PropertyCardProps {
   title: string;
   location: string;
   price: number;
+  monthlyRent?: number;
   images: string[];
   rating: number;
   reviewCount: number;
@@ -17,17 +18,15 @@ interface PropertyCardProps {
   onToggleFavorite?: () => void;
 }
 
-const PropertyCard = ({ id, title, location, price, images, rating, reviewCount, isFavorited, onToggleFavorite }: PropertyCardProps) => {
+const PropertyCard = ({ id, title, location, price, monthlyRent, images, rating, reviewCount, isFavorited, onToggleFavorite }: PropertyCardProps) => {
   const { user } = useAuth();
   const imageUrl = images?.[0] || '/placeholder.svg';
+  const displayPrice = monthlyRent || price;
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user) {
-      toast.error('Please sign in to save favorites');
-      return;
-    }
+    if (!user) { toast.error('Please sign in to save favorites'); return; }
     if (isFavorited) {
       await supabase.from('favorites').delete().eq('user_id', user.id).eq('property_id', id);
     } else {
@@ -37,44 +36,27 @@ const PropertyCard = ({ id, title, location, price, images, rating, reviewCount,
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="group"
-    >
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="group">
       <Link to={`/property/${id}`} className="block">
         <div className="relative aspect-[4/3] overflow-hidden rounded-xl">
-          <img
-            src={imageUrl}
-            alt={title}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            loading="lazy"
-          />
-          <button
-            onClick={handleFavorite}
-            className="absolute right-3 top-3 rounded-full bg-background/80 p-2 backdrop-blur-sm transition hover:bg-background"
-          >
+          <img src={imageUrl} alt={title} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
+          <button onClick={handleFavorite} className="absolute right-3 top-3 rounded-full bg-background/80 p-2 backdrop-blur-sm transition hover:bg-background">
             <Heart className={`h-4 w-4 ${isFavorited ? 'fill-primary text-primary' : 'text-foreground'}`} />
           </button>
         </div>
         <div className="mt-3 space-y-1">
           <div className="flex items-center justify-between">
-            <h3 className="font-heading font-semibold text-foreground truncate">{title}</h3>
+            <h3 className="truncate font-heading font-semibold text-foreground">{title}</h3>
             {rating > 0 && (
               <div className="flex items-center gap-1 text-sm">
-                <Star className="h-3.5 w-3.5 fill-foreground text-foreground" />
-                <span>{rating.toFixed(1)}</span>
+                <Star className="h-3.5 w-3.5 fill-foreground text-foreground" /><span>{rating.toFixed(1)}</span>
               </div>
             )}
           </div>
-          <p className="flex items-center gap-1 text-sm text-muted-foreground">
-            <MapPin className="h-3.5 w-3.5" />
-            {location}
-          </p>
+          <p className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-3.5 w-3.5" />{location}</p>
           <p className="text-sm">
-            <span className="font-semibold text-foreground">₹{price.toLocaleString()}</span>
-            <span className="text-muted-foreground"> / night</span>
+            <span className="font-semibold text-foreground">₹{displayPrice.toLocaleString()}</span>
+            <span className="text-muted-foreground"> / month</span>
           </p>
         </div>
       </Link>
