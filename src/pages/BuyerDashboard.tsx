@@ -136,7 +136,25 @@ const BuyerDashboard = () => {
               </div>
             </div>
           </TabsContent>
+
+          <TabsContent value="notifications">
+            {messages.length === 0 ? (
+              <div className="rounded-2xl border border-dashed p-12 text-center text-muted-foreground"><Bell className="mx-auto mb-3 h-8 w-8" />No notifications</div>
+            ) : (
+              <div className="space-y-3">
+                {messages.map(m => (
+                  <div key={m.id} className="rounded-xl border p-4">
+                    <p className="font-heading font-semibold">{m.subject}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{m.message}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">{format(new Date(m.created_at), 'MMM dd, yyyy HH:mm')}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
+
+        <SupportBanner />
       </div>
     </div>
   );
