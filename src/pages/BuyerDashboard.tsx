@@ -22,16 +22,20 @@ const BuyerDashboard = () => {
 
   useEffect(() => {
     if (!user) return;
-    const fetch = async () => {
-      const [bookingsRes, favsRes] = await Promise.all([
+    const fetchAll = async () => {
+      const [bookingsRes, favsRes, msgsRes, disqRes] = await Promise.all([
         supabase.from('bookings').select('*, properties(title, location, images, price, monthly_rent, seller_id)').eq('buyer_id', user.id).order('created_at', { ascending: false }),
         supabase.from('favorites').select('*, properties(*)').eq('user_id', user.id),
+        supabase.from('admin_messages').select('*').or(`recipient_id.eq.${user.id},recipient_role.eq.buyer,recipient_role.is.null`).order('created_at', { ascending: false }),
+        supabase.from('user_disqualifications').select('*').eq('user_id', user.id).eq('status', 'active'),
       ]);
       setBookings(bookingsRes.data || []);
       setFavorites(favsRes.data || []);
+      setMessages(msgsRes.data || []);
+      setDisqualified((disqRes.data || []).length > 0);
       setLoading(false);
     };
-    fetch();
+    fetchAll();
   }, [user]);
 
   const submitComplaint = async () => {
