@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Home, BarChart3, Calendar, MessageSquare, Trash2, Edit, Upload, ShieldCheck, Clock, XCircle } from 'lucide-react';
+import { Plus, Home, BarChart3, Calendar, MessageSquare, Trash2, Edit, Upload, ShieldCheck, Clock, XCircle, Bell } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import SupportBanner from '@/components/SupportBanner';
 
 const SellerDashboard = () => {
   const { user } = useAuth();
