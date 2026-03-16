@@ -12,6 +12,8 @@ import PropertyDetailPage from "@/pages/PropertyDetailPage";
 import BuyerDashboard from "@/pages/BuyerDashboard";
 import SellerDashboard from "@/pages/SellerDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
+import SuperAdminDashboard from "@/pages/SuperAdminDashboard";
+import PropertyCheckerDashboard from "@/pages/PropertyCheckerDashboard";
 import FavoritesPage from "@/pages/FavoritesPage";
 import PunePage from "@/pages/PunePage";
 import AreaPage from "@/pages/AreaPage";
