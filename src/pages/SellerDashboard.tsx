@@ -152,10 +152,30 @@ const SellerDashboard = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="font-heading text-2xl font-bold">Host Dashboard</h1>
-          <Button onClick={() => { setShowForm(true); setEditingId(null); setForm({ title: '', description: '', location: '', monthly_rent: '', security_deposit: '', maintenance_fee: '', min_rental_months: '1', max_guests: '1', amenities: '', video_url: '' }); }}>
-            <Plus className="mr-2 h-4 w-4" /> Add Property
-          </Button>
+          {!disqualified && (
+            <Button onClick={() => { setShowForm(true); setEditingId(null); setForm({ title: '', description: '', location: '', monthly_rent: '', security_deposit: '', maintenance_fee: '', min_rental_months: '1', max_guests: '1', amenities: '', video_url: '' }); }}>
+              <Plus className="mr-2 h-4 w-4" /> Add Property
+            </Button>
+          )}
         </div>
+
+        {disqualified && (
+          <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-center">
+            <p className="font-semibold text-destructive">Your account has been temporarily restricted due to policy violations.</p>
+            <p className="mt-1 text-sm text-muted-foreground">For support, contact RentMeAbhi.com or call <a href="tel:+919356357789" className="font-semibold text-primary">+91 9356357789</a></p>
+          </div>
+        )}
+
+        {messages.length > 0 && (
+          <div className="mb-6 space-y-2">
+            {messages.slice(0, 3).map(m => (
+              <div key={m.id} className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                <Bell className="mt-0.5 h-4 w-4 text-primary" />
+                <div><p className="text-sm font-semibold">{m.subject}</p><p className="text-xs text-muted-foreground">{m.message}</p></div>
+              </div>
+            ))}
+          </div>
+        )
 
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
