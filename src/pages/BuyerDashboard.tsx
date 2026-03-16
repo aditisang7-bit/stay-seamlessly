@@ -14,9 +14,11 @@ const BuyerDashboard = () => {
   const { user } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [complaintMsg, setComplaintMsg] = useState('');
   const [complaintPropertyId, setComplaintPropertyId] = useState('');
+  const [disqualified, setDisqualified] = useState(false);
 
   useEffect(() => {
     if (!user) return;
