@@ -30,14 +30,18 @@ const SellerDashboard = () => {
 
   const fetchData = async () => {
     if (!user) return;
-    const [propsRes, bookingsRes, complaintsRes] = await Promise.all([
+    const [propsRes, bookingsRes, complaintsRes, msgsRes, disqRes] = await Promise.all([
       supabase.from('properties').select('*').eq('seller_id', user.id).order('created_at', { ascending: false }),
       supabase.from('bookings').select('*, properties(title)').order('created_at', { ascending: false }),
       supabase.from('complaints').select('*, properties(title)').eq('seller_id', user.id),
+      supabase.from('admin_messages').select('*').or(`recipient_id.eq.${user.id},recipient_role.eq.seller,recipient_role.is.null`).order('created_at', { ascending: false }),
+      supabase.from('user_disqualifications').select('*').eq('user_id', user.id).eq('status', 'active'),
     ]);
     setProperties(propsRes.data || []);
     setBookings(bookingsRes.data || []);
     setComplaints(complaintsRes.data || []);
+    setMessages(msgsRes.data || []);
+    setDisqualified((disqRes.data || []).length > 0);
   };
 
   useEffect(() => { fetchData(); }, [user]);
