@@ -25,6 +25,8 @@ const SellerDashboard = () => {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [docFiles, setDocFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [disqualified, setDisqualified] = useState(false);
 
   const fetchData = async () => {
     if (!user) return;
