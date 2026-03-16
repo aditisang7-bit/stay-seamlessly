@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Home, MessageCircle, Facebook } from 'lucide-react';
+import { Home, MessageCircle, Facebook, Phone } from 'lucide-react';
 import WhatsAppCTA from './WhatsAppCTA';
 
 const PUNE_AREAS = [
