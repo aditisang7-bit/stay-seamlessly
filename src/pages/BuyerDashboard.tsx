@@ -74,7 +74,7 @@ const BuyerDashboard = () => {
               </div>
             ))}
           </div>
-        )
+        )}
         <Tabs defaultValue="bookings">
           <TabsList className="mb-6">
             <TabsTrigger value="bookings" className="gap-2"><Calendar className="h-4 w-4" />My Bookings</TabsTrigger>
