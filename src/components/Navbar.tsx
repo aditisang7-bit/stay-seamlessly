@@ -14,7 +14,7 @@ const Navbar = () => {
     navigate('/');
   };
 
-  const dashboardPath = role === 'seller' ? '/seller' : role === 'admin' ? '/admin' : '/buyer';
+  const dashboardPath = role === 'super_admin' ? '/super-admin' : role === 'admin' ? '/admin' : role === 'property_checker' ? '/checker' : role === 'seller' ? '/seller' : '/buyer';
 
   return (
     <nav className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-lg">

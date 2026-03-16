@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Home, MessageCircle, Facebook } from 'lucide-react';
+import { Home, MessageCircle, Facebook, Phone } from 'lucide-react';
 import WhatsAppCTA from './WhatsAppCTA';
 
 const PUNE_AREAS = [
@@ -65,8 +65,12 @@ const Footer = () => (
         </div>
       </div>
 
-      <div className="mt-8 border-t pt-6 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} RentMeAbhi by Abhijeet Construction. All rights reserved.
+      <div className="mt-8 flex flex-col items-center gap-3 border-t pt-6 text-center text-sm text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <Phone className="h-4 w-4 text-primary" />
+          <span>Have any queries? Contact RentMeAbhi.com or call <a href="tel:+919356357789" className="font-semibold text-primary hover:underline">+91 9356357789</a></span>
+        </div>
+        <p>© {new Date().getFullYear()} RentMeAbhi by Abhijeet Construction. All rights reserved.</p>
       </div>
     </div>
   </footer>

@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_messages: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          recipient_id: string | null
+          recipient_role: string | null
+          sender_id: string
+          subject: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          recipient_id?: string | null
+          recipient_role?: string | null
+          sender_id: string
+          subject: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          recipient_id?: string | null
+          recipient_role?: string | null
+          sender_id?: string
+          subject?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          target_id: string | null
+          target_type: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bookings: {
         Row: {
           buyer_id: string
@@ -130,6 +193,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      host_feature_access: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          feature_name: string
+          id: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          feature_name: string
+          id?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          feature_name?: string
+          id?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       payments: {
         Row: {
@@ -335,6 +425,33 @@ export type Database = {
           },
         ]
       }
+      user_disqualifications: {
+        Row: {
+          created_at: string
+          disqualified_by: string
+          id: string
+          reason: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          disqualified_by: string
+          id?: string
+          reason: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          disqualified_by?: string
+          id?: string
+          reason?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -367,7 +484,12 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "buyer" | "seller" | "admin"
+      app_role:
+        | "buyer"
+        | "seller"
+        | "admin"
+        | "super_admin"
+        | "property_checker"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -495,7 +617,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["buyer", "seller", "admin"],
+      app_role: ["buyer", "seller", "admin", "super_admin", "property_checker"],
     },
   },
 } as const

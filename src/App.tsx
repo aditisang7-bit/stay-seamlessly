@@ -12,6 +12,8 @@ import PropertyDetailPage from "@/pages/PropertyDetailPage";
 import BuyerDashboard from "@/pages/BuyerDashboard";
 import SellerDashboard from "@/pages/SellerDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
+import SuperAdminDashboard from "@/pages/SuperAdminDashboard";
+import PropertyCheckerDashboard from "@/pages/PropertyCheckerDashboard";
 import FavoritesPage from "@/pages/FavoritesPage";
 import PunePage from "@/pages/PunePage";
 import AreaPage from "@/pages/AreaPage";
@@ -35,6 +37,8 @@ const App = () => (
             <Route path="/buyer" element={<BuyerDashboard />} />
             <Route path="/seller" element={<SellerDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/super-admin" element={<SuperAdminDashboard />} />
+            <Route path="/checker" element={<PropertyCheckerDashboard />} />
             <Route path="/favorites" element={<FavoritesPage />} />
             <Route path="/rent/pune" element={<PunePage />} />
             <Route path="/rent/pune/:area" element={<AreaPage />} />
