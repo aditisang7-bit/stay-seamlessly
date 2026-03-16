@@ -80,6 +80,7 @@ const BuyerDashboard = () => {
             <TabsTrigger value="bookings" className="gap-2"><Calendar className="h-4 w-4" />My Bookings</TabsTrigger>
             <TabsTrigger value="favorites" className="gap-2"><Heart className="h-4 w-4" />Favorites</TabsTrigger>
             <TabsTrigger value="complaints" className="gap-2"><MessageSquare className="h-4 w-4" />Complaints</TabsTrigger>
+            <TabsTrigger value="notifications" className="gap-2"><Bell className="h-4 w-4" />Notifications</TabsTrigger>
           </TabsList>
 
           <TabsContent value="bookings">
