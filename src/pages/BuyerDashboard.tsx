@@ -57,6 +57,24 @@ const BuyerDashboard = () => {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         <h1 className="mb-6 font-heading text-2xl font-bold">Buyer Dashboard</h1>
+
+        {disqualified && (
+          <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-center">
+            <p className="font-semibold text-destructive">Your account has been temporarily restricted due to policy violations.</p>
+            <p className="mt-1 text-sm text-muted-foreground">For support, contact RentMeAbhi.com or call <a href="tel:+919356357789" className="font-semibold text-primary">+91 9356357789</a></p>
+          </div>
+        )}
+
+        {messages.length > 0 && (
+          <div className="mb-6 space-y-2">
+            {messages.slice(0, 3).map(m => (
+              <div key={m.id} className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                <Bell className="mt-0.5 h-4 w-4 text-primary" />
+                <div><p className="text-sm font-semibold">{m.subject}</p><p className="text-xs text-muted-foreground">{m.message}</p></div>
+              </div>
+            ))}
+          </div>
+        )
         <Tabs defaultValue="bookings">
           <TabsList className="mb-6">
             <TabsTrigger value="bookings" className="gap-2"><Calendar className="h-4 w-4" />My Bookings</TabsTrigger>
