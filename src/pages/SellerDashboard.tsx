@@ -310,6 +310,8 @@ const SellerDashboard = () => {
             )}
           </TabsContent>
         </Tabs>
+
+        <SupportBanner />
       </div>
     </div>
   );
