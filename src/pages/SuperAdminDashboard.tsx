@@ -8,15 +8,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { BarChart3, Users, Home, Calendar, CreditCard, ShieldCheck, MessageSquare, Eye, Settings, ScrollText, Ban, UserPlus } from 'lucide-react';
+import { BarChart3, Users, Home, Calendar, CreditCard, ShieldCheck, MessageSquare, Eye, Settings, ScrollText, Ban, UserPlus, Clock, XCircle, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import SupportBanner from '@/components/SupportBanner';
 
 const SuperAdminDashboard = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState({ properties: 0, users: 0, bookings: 0, revenue: 0, pending: 0 });
+  const [stats, setStats] = useState({ properties: 0, users: 0, bookings: 0, revenue: 0, pending: 0, approved: 0, rejected: 0 });
   const [properties, setProperties] = useState<any[]>([]);
-  const [pendingProps, setPendingProps] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
@@ -24,6 +23,8 @@ const SuperAdminDashboard = () => {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [disqualifications, setDisqualifications] = useState<any[]>([]);
   const [docsByProp, setDocsByProp] = useState<Record<string, any[]>>({});
+  const [approvalTab, setApprovalTab] = useState('pending');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Messaging state
   const [msgSubject, setMsgSubject] = useState('');
@@ -59,20 +60,23 @@ const SuperAdminDashboard = () => {
     const allUsers = usersRes.data || [];
     const allRoles = rolesRes.data || [];
     const pending = props.filter(p => p.verification_status === 'pending');
+    const approved = props.filter(p => p.verification_status === 'approved');
+    const rejected = props.filter(p => p.verification_status === 'rejected');
     const revenue = books.filter(b => b.status === 'confirmed').reduce((s, b) => s + (b.total_price || 0), 0);
 
     setProperties(props);
-    setPendingProps(pending);
     setBookings(books);
     setPayments(pays);
     setUsers(allUsers);
     setRoles(allRoles);
     setAuditLogs(logsRes.data || []);
     setDisqualifications(disqRes.data || []);
-    setStats({ properties: props.length, users: allUsers.length, bookings: books.length, revenue, pending: pending.length });
+    setStats({ properties: props.length, users: allUsers.length, bookings: books.length, revenue, pending: pending.length, approved: approved.length, rejected: rejected.length });
 
-    if (pending.length > 0) {
-      const { data: docs } = await supabase.from('property_documents').select('*').in('property_id', pending.map(p => p.id));
+    // Fetch docs for all properties (not just pending)
+    const allPropIds = props.map((p: any) => p.id);
+    if (allPropIds.length > 0) {
+      const { data: docs } = await supabase.from('property_documents').select('*').in('property_id', allPropIds);
       const grouped: Record<string, any[]> = {};
       (docs || []).forEach(d => { if (!grouped[d.property_id]) grouped[d.property_id] = []; grouped[d.property_id].push(d); });
       setDocsByProp(grouped);
@@ -142,6 +146,72 @@ const SuperAdminDashboard = () => {
 
   const sellers = users.filter(u => getUserRole(u.user_id) === 'seller');
 
+  const getFilteredProperties = (status: string) => {
+    let filtered = properties.filter(p => p.verification_status === status);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(p => p.title?.toLowerCase().includes(q) || p.location?.toLowerCase().includes(q));
+    }
+    return filtered;
+  };
+
+  const statusBadge = (status: string) => {
+    const cls = status === 'approved' ? 'bg-success/10 text-success' : status === 'rejected' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning';
+    return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{status}</span>;
+  };
+
+  const renderPropertyCard = (p: any, showActions: boolean) => (
+    <div key={p.id} className="rounded-xl border p-4">
+      <div className="flex items-center gap-4">
+        <img src={p.images?.[0] || '/placeholder.svg'} alt="" className="h-20 w-20 rounded-lg object-cover" />
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <p className="font-heading font-semibold">{p.title}</p>
+            {statusBadge(p.verification_status)}
+          </div>
+          <p className="text-sm text-muted-foreground">{p.location} · ₹{(p.monthly_rent || p.price)?.toLocaleString()}/mo</p>
+          <p className="text-xs text-muted-foreground">Host: {getUserName(p.seller_id)} · {format(new Date(p.created_at), 'MMM dd, yyyy')}</p>
+        </div>
+        {showActions && (
+          <div className="flex flex-wrap gap-2">
+            {p.verification_status === 'pending' && (
+              <>
+                <Button size="sm" onClick={() => updateVerification(p.id, 'approved')}>
+                  <CheckCircle className="mr-1 h-3 w-3" /> Approve
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => toast.info('Property will remain pending')}>
+                  <Clock className="mr-1 h-3 w-3" /> Keep Waiting
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => updateVerification(p.id, 'rejected')}>
+                  <XCircle className="mr-1 h-3 w-3" /> Reject
+                </Button>
+              </>
+            )}
+            {p.verification_status === 'rejected' && (
+              <Button size="sm" onClick={() => updateVerification(p.id, 'approved')}>
+                <CheckCircle className="mr-1 h-3 w-3" /> Re-approve
+              </Button>
+            )}
+            {p.verification_status === 'approved' && (
+              <Button size="sm" variant="destructive" onClick={() => updateVerification(p.id, 'rejected')}>
+                <XCircle className="mr-1 h-3 w-3" /> Revoke
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+      {docsByProp[p.id]?.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {docsByProp[p.id].map(d => (
+            <a key={d.id} href={d.document_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary">
+              <Eye className="h-3 w-3" /> {d.document_type}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -166,7 +236,7 @@ const SuperAdminDashboard = () => {
 
         <Tabs defaultValue="verification">
           <TabsList className="mb-6 flex-wrap">
-            <TabsTrigger value="verification" className="gap-2"><ShieldCheck className="h-4 w-4" />Verification</TabsTrigger>
+            <TabsTrigger value="verification" className="gap-2"><ShieldCheck className="h-4 w-4" />Approvals</TabsTrigger>
             <TabsTrigger value="users" className="gap-2"><Users className="h-4 w-4" />Users</TabsTrigger>
             <TabsTrigger value="roles" className="gap-2"><UserPlus className="h-4 w-4" />Roles</TabsTrigger>
             <TabsTrigger value="messages" className="gap-2"><MessageSquare className="h-4 w-4" />Messages</TabsTrigger>
@@ -176,39 +246,44 @@ const SuperAdminDashboard = () => {
             <TabsTrigger value="audit" className="gap-2"><ScrollText className="h-4 w-4" />Audit Logs</TabsTrigger>
           </TabsList>
 
-          {/* Verification Tab */}
+          {/* Approval Tab with sub-tabs */}
           <TabsContent value="verification">
-            {pendingProps.length === 0 ? (
-              <div className="rounded-2xl border border-dashed p-12 text-center text-muted-foreground">No properties pending</div>
-            ) : (
-              <div className="space-y-4">
-                {pendingProps.map(p => (
-                  <div key={p.id} className="rounded-xl border p-4">
-                    <div className="flex items-center gap-4">
-                      <img src={p.images?.[0] || '/placeholder.svg'} alt="" className="h-20 w-20 rounded-lg object-cover" />
-                      <div className="flex-1">
-                        <p className="font-heading font-semibold">{p.title}</p>
-                        <p className="text-sm text-muted-foreground">{p.location} · ₹{(p.monthly_rent || p.price)?.toLocaleString()}/mo</p>
-                        <p className="text-xs text-muted-foreground">Host: {getUserName(p.seller_id)}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => updateVerification(p.id, 'approved')}>Approve</Button>
-                        <Button size="sm" variant="destructive" onClick={() => updateVerification(p.id, 'rejected')}>Reject</Button>
-                      </div>
-                    </div>
-                    {docsByProp[p.id]?.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {docsByProp[p.id].map(d => (
-                          <a key={d.id} href={d.document_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary">
-                            <Eye className="h-3 w-3" /> {d.document_type}
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+            <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex gap-2">
+                {[
+                  { key: 'pending', label: 'Pending', count: stats.pending, color: 'bg-warning/10 text-warning' },
+                  { key: 'approved', label: 'Approved', count: stats.approved, color: 'bg-success/10 text-success' },
+                  { key: 'rejected', label: 'Rejected', count: stats.rejected, color: 'bg-destructive/10 text-destructive' },
+                ].map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setApprovalTab(tab.key)}
+                    className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+                      approvalTab === tab.key ? 'bg-primary text-primary-foreground' : 'border hover:bg-secondary'
+                    }`}
+                  >
+                    {tab.label}
+                    <span className={`rounded-full px-1.5 py-0.5 text-xs ${approvalTab === tab.key ? 'bg-primary-foreground/20 text-primary-foreground' : tab.color}`}>
+                      {tab.count}
+                    </span>
+                  </button>
                 ))}
               </div>
-            )}
+              <Input
+                placeholder="Search by title or location..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="max-w-xs"
+              />
+            </div>
+
+            {(() => {
+              const filtered = getFilteredProperties(approvalTab);
+              if (filtered.length === 0) {
+                return <div className="rounded-2xl border border-dashed p-12 text-center text-muted-foreground">No {approvalTab} properties</div>;
+              }
+              return <div className="space-y-4">{filtered.map(p => renderPropertyCard(p, true))}</div>;
+            })()}
           </TabsContent>
 
           {/* Users Tab */}
