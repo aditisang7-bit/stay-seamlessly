@@ -2,11 +2,16 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 
+type AppRole = 'super_admin' | 'admin' | 'property_checker' | 'seller' | 'buyer';
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: { name: string; email: string; avatar_url: string | null } | null;
   role: string | null;
+  allRoles: string[];
+  activeMode: string | null;
+  setActiveMode: (mode: string) => void;
   loading: boolean;
   signUp: (email: string, password: string, name: string, role: 'buyer' | 'seller') => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
@@ -21,11 +26,15 @@ export const useAuth = () => {
   return ctx;
 };
 
+const ROLE_PRIORITY: AppRole[] = ['super_admin', 'admin', 'property_checker', 'seller', 'buyer'];
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<AuthContextType['profile']>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [allRoles, setAllRoles] = useState<string[]>([]);
+  const [activeMode, setActiveMode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
@@ -36,11 +45,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchRole = async (userId: string) => {
     const { data } = await supabase.from('user_roles').select('role').eq('user_id', userId);
     if (data && data.length > 0) {
-      const priority: string[] = ['super_admin', 'admin', 'property_checker', 'seller', 'buyer'];
       const roles = data.map(r => r.role as string);
-      const best = priority.find(p => roles.includes(p)) || roles[0];
+      setAllRoles(roles);
+      const best = ROLE_PRIORITY.find(p => roles.includes(p)) || roles[0];
       setRole(best);
-      setRole(best);
+      setActiveMode(best);
     }
   };
 
@@ -56,6 +65,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setProfile(null);
         setRole(null);
+        setAllRoles([]);
+        setActiveMode(null);
       }
       setLoading(false);
     });
@@ -97,10 +108,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSession(null);
     setProfile(null);
     setRole(null);
+    setAllRoles([]);
+    setActiveMode(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, profile, role, allRoles, activeMode, setActiveMode, loading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

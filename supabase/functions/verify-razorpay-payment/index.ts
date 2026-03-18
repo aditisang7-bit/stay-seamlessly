@@ -17,14 +17,19 @@ serve(async (req) => {
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Unauthorized");
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) throw new Error("Unauthorized");
 
     const { razorpay_payment_id, razorpay_order_id, razorpay_signature, booking_id } = await req.json();
+
+    if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature || !booking_id) {
+      throw new Error("Missing required payment verification fields");
+    }
 
     const KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET");
     if (!KEY_SECRET) throw new Error("Razorpay secret not configured");
@@ -41,10 +46,10 @@ serve(async (req) => {
     const expectedSignature = new TextDecoder().decode(hexEncode(new Uint8Array(signature)));
 
     if (expectedSignature !== razorpay_signature) {
+      console.error("Signature mismatch - expected:", expectedSignature.substring(0, 16), "got:", razorpay_signature.substring(0, 16));
       throw new Error("Payment signature verification failed");
     }
 
-    // Detect test mode
     const isTestPayment = razorpay_payment_id?.startsWith("pay_test_") || razorpay_order_id?.startsWith("order_test_");
 
     const serviceClient = createClient(
@@ -53,15 +58,21 @@ serve(async (req) => {
     );
 
     // Update payment
-    await serviceClient.from("payments").update({
+    const { error: payErr } = await serviceClient.from("payments").update({
       razorpay_payment_id,
       status: "completed",
     }).eq("razorpay_order_id", razorpay_order_id);
 
+    if (payErr) console.error("Payment update error:", payErr);
+
     // Confirm booking
-    await serviceClient.from("bookings").update({
+    const { error: bookErr } = await serviceClient.from("bookings").update({
       status: "confirmed",
     }).eq("id", booking_id);
+
+    if (bookErr) console.error("Booking update error:", bookErr);
+
+    console.log(`Payment verified: ${razorpay_payment_id}, booking: ${booking_id}, test: ${isTestPayment}`);
 
     return new Response(
       JSON.stringify({
@@ -73,6 +84,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    console.error("verify-razorpay-payment error:", err.message);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
