@@ -34,8 +34,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const fetchRole = async (userId: string) => {
-    const { data } = await supabase.from('user_roles').select('role').eq('user_id', userId).single();
-    if (data) setRole(data.role);
+    const { data } = await supabase.from('user_roles').select('role').eq('user_id', userId);
+    if (data && data.length > 0) {
+      const priority: string[] = ['super_admin', 'admin', 'property_checker', 'seller', 'buyer'];
+      const roles = data.map(r => r.role as string);
+      const best = priority.find(p => roles.includes(p)) || roles[0];
+      setRole(best);
+      setRole(best);
+    }
   };
 
   useEffect(() => {
