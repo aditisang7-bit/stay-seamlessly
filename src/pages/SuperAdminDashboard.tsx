@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { BarChart3, Users, Home, Calendar, CreditCard, ShieldCheck, MessageSquare, Eye, Settings, ScrollText, Ban, UserPlus, Clock, XCircle, CheckCircle } from 'lucide-react';
+import { BarChart3, Users, Home, Calendar, CreditCard, ShieldCheck, MessageSquare, Eye, Settings, ScrollText, Ban, UserPlus, Clock, XCircle, CheckCircle, FileText, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import SupportBanner from '@/components/SupportBanner';
 
@@ -23,6 +23,8 @@ const SuperAdminDashboard = () => {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [disqualifications, setDisqualifications] = useState<any[]>([]);
   const [docsByProp, setDocsByProp] = useState<Record<string, any[]>>({});
+  const [sellerDocs, setSellerDocs] = useState<any[]>([]);
+  const [enquiries, setEnquiries] = useState<any[]>([]);
   const [approvalTab, setApprovalTab] = useState('pending');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -44,7 +46,7 @@ const SuperAdminDashboard = () => {
   const [featureEnabled, setFeatureEnabled] = useState(true);
 
   const fetchData = async () => {
-    const [propsRes, bookingsRes, paymentsRes, usersRes, rolesRes, logsRes, disqRes] = await Promise.all([
+    const [propsRes, bookingsRes, paymentsRes, usersRes, rolesRes, logsRes, disqRes, enquiriesRes, sellerDocsRes] = await Promise.all([
       supabase.from('properties').select('*'),
       supabase.from('bookings').select('*, properties(title)'),
       supabase.from('payments').select('*, bookings(reference_id, properties(title))'),
@@ -52,6 +54,8 @@ const SuperAdminDashboard = () => {
       supabase.from('user_roles').select('*'),
       supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(50),
       supabase.from('user_disqualifications').select('*').order('created_at', { ascending: false }),
+      supabase.from('enquiries').select('*, properties(title, location)').order('created_at', { ascending: false }),
+      supabase.from('seller_documents').select('*').order('created_at', { ascending: false }),
     ]);
 
     const props = propsRes.data || [];
@@ -71,6 +75,8 @@ const SuperAdminDashboard = () => {
     setRoles(allRoles);
     setAuditLogs(logsRes.data || []);
     setDisqualifications(disqRes.data || []);
+    setEnquiries(enquiriesRes.data || []);
+    setSellerDocs(sellerDocsRes.data || []);
     setStats({ properties: props.length, users: allUsers.length, bookings: books.length, revenue, pending: pending.length, approved: approved.length, rejected: rejected.length });
 
     // Fetch docs for all properties (not just pending)
@@ -242,6 +248,8 @@ const SuperAdminDashboard = () => {
             <TabsTrigger value="messages" className="gap-2"><MessageSquare className="h-4 w-4" />Messages</TabsTrigger>
             <TabsTrigger value="features" className="gap-2"><Settings className="h-4 w-4" />Feature Control</TabsTrigger>
             <TabsTrigger value="payments" className="gap-2"><CreditCard className="h-4 w-4" />Payments</TabsTrigger>
+            <TabsTrigger value="enquiries" className="gap-2"><Send className="h-4 w-4" />Enquiries</TabsTrigger>
+            <TabsTrigger value="seller-docs" className="gap-2"><FileText className="h-4 w-4" />Seller Docs</TabsTrigger>
             <TabsTrigger value="disqualified" className="gap-2"><Ban className="h-4 w-4" />Disqualified</TabsTrigger>
             <TabsTrigger value="audit" className="gap-2"><ScrollText className="h-4 w-4" />Audit Logs</TabsTrigger>
           </TabsList>
@@ -411,6 +419,74 @@ const SuperAdminDashboard = () => {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Enquiries Tab */}
+          <TabsContent value="enquiries">
+            {enquiries.length === 0 ? (
+              <div className="rounded-2xl border border-dashed p-12 text-center text-muted-foreground">No enquiries</div>
+            ) : (
+              <div className="space-y-4">
+                {enquiries.map(e => (
+                  <div key={e.id} className="flex items-center justify-between rounded-xl border p-4">
+                    <div>
+                      <p className="font-heading font-semibold">{e.properties?.title || 'Property'}</p>
+                      <p className="text-sm text-muted-foreground">{e.properties?.location}</p>
+                      <p className="mt-1 text-sm">{e.message}</p>
+                      <p className="text-xs text-muted-foreground">Buyer: {getUserName(e.buyer_id)} → Seller: {getUserName(e.seller_id)} · {format(new Date(e.created_at), 'MMM dd, yyyy')}</p>
+                    </div>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${e.status === 'accepted' ? 'bg-success/10 text-success' : e.status === 'rejected' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}`}>
+                      {e.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Seller Documents Tab */}
+          <TabsContent value="seller-docs">
+            {sellerDocs.length === 0 ? (
+              <div className="rounded-2xl border border-dashed p-12 text-center text-muted-foreground">No seller documents</div>
+            ) : (
+              <div className="space-y-4">
+                {sellerDocs.map(d => (
+                  <div key={d.id} className="flex items-center justify-between rounded-xl border p-4">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium capitalize">{d.document_type.replace('_', ' ')}</p>
+                        <p className="text-xs text-muted-foreground">Seller: {getUserName(d.seller_id)} · {format(new Date(d.created_at), 'MMM dd, yyyy')}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${d.verification_status === 'verified' ? 'bg-success/10 text-success' : d.verification_status === 'rejected' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}`}>
+                        {d.verification_status}
+                      </span>
+                      <a href={d.document_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">View</a>
+                      {d.verification_status === 'pending' && (
+                        <>
+                          <Button size="sm" onClick={async () => {
+                            await supabase.from('seller_documents').update({ verification_status: 'verified', verified_by: user?.id }).eq('id', d.id);
+                            await logAction('verify_document', 'seller_document', d.id);
+                            toast.success('Document verified');
+                            fetchData();
+                          }}><CheckCircle className="mr-1 h-3 w-3" /> Verify</Button>
+                          <Button size="sm" variant="destructive" onClick={async () => {
+                            const reason = prompt('Rejection reason:');
+                            if (!reason) return;
+                            await supabase.from('seller_documents').update({ verification_status: 'rejected', rejection_reason: reason, verified_by: user?.id }).eq('id', d.id);
+                            await logAction('reject_document', 'seller_document', d.id);
+                            toast.success('Document rejected');
+                            fetchData();
+                          }}><XCircle className="mr-1 h-3 w-3" /> Reject</Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </TabsContent>

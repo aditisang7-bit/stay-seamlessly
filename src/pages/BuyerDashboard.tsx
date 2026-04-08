@@ -4,8 +4,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import PropertyCard from '@/components/PropertyCard';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar, Home, Heart, MessageSquare, Bell } from 'lucide-react';
+import { Calendar, Home, Heart, MessageSquare, Bell, Send } from 'lucide-react';
 import SupportBanner from '@/components/SupportBanner';
+import ProfileCompletionModal from '@/components/ProfileCompletionModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -15,24 +16,30 @@ const BuyerDashboard = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
+  const [enquiries, setEnquiries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [complaintMsg, setComplaintMsg] = useState('');
   const [complaintPropertyId, setComplaintPropertyId] = useState('');
   const [disqualified, setDisqualified] = useState(false);
+  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!user) return;
     const fetchAll = async () => {
-      const [bookingsRes, favsRes, msgsRes, disqRes] = await Promise.all([
+      const [bookingsRes, favsRes, msgsRes, disqRes, enquiriesRes, profileRes] = await Promise.all([
         supabase.from('bookings').select('*, properties(title, location, images, price, monthly_rent, seller_id)').eq('buyer_id', user.id).order('created_at', { ascending: false }),
         supabase.from('favorites').select('*, properties(*)').eq('user_id', user.id),
         supabase.from('admin_messages').select('*').or(`recipient_id.eq.${user.id},recipient_role.eq.buyer,recipient_role.is.null`).order('created_at', { ascending: false }),
         supabase.from('user_disqualifications').select('*').eq('user_id', user.id).eq('status', 'active'),
+        supabase.from('enquiries').select('*, properties(title, location)').eq('buyer_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('profiles').select('profile_completed').eq('user_id', user.id).single(),
       ]);
       setBookings(bookingsRes.data || []);
       setFavorites(favsRes.data || []);
       setMessages(msgsRes.data || []);
       setDisqualified((disqRes.data || []).length > 0);
+      setEnquiries(enquiriesRes.data || []);
+      setProfileComplete((profileRes.data as any)?.profile_completed ?? false);
       setLoading(false);
     };
     fetchAll();
@@ -43,25 +50,26 @@ const BuyerDashboard = () => {
     if (!user) return;
     const booking = bookings.find(b => b.property_id === complaintPropertyId);
     await supabase.from('complaints').insert({
-      buyer_id: user.id,
-      property_id: complaintPropertyId || null,
-      seller_id: booking?.properties?.seller_id || null,
-      message: complaintMsg,
+      buyer_id: user.id, property_id: complaintPropertyId || null,
+      seller_id: booking?.properties?.seller_id || null, message: complaintMsg,
     });
     toast.success('Complaint submitted');
-    setComplaintMsg('');
-    setComplaintPropertyId('');
+    setComplaintMsg(''); setComplaintPropertyId('');
   };
+
+  if (profileComplete === null) return <div className="flex min-h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
 
   return (
     <div className="min-h-screen bg-background">
+      {profileComplete === false && <ProfileCompletionModal userRole="buyer" onComplete={() => setProfileComplete(true)} />}
+
       <div className="container mx-auto px-4 py-8">
         <h1 className="mb-6 font-heading text-2xl font-bold">Buyer Dashboard</h1>
 
         {disqualified && (
           <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-center">
-            <p className="font-semibold text-destructive">Your account has been temporarily restricted due to policy violations.</p>
-            <p className="mt-1 text-sm text-muted-foreground">For support, contact RentMeAbhi.com or call <a href="tel:+919356357789" className="font-semibold text-primary">+91 9356357789</a></p>
+            <p className="font-semibold text-destructive">Your account has been temporarily restricted.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Contact <a href="tel:+919356357789" className="font-semibold text-primary">+91 9356357789</a></p>
           </div>
         )}
 
@@ -75,9 +83,11 @@ const BuyerDashboard = () => {
             ))}
           </div>
         )}
+
         <Tabs defaultValue="bookings">
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 flex-wrap">
             <TabsTrigger value="bookings" className="gap-2"><Calendar className="h-4 w-4" />My Bookings</TabsTrigger>
+            <TabsTrigger value="enquiries" className="gap-2"><Send className="h-4 w-4" />My Enquiries ({enquiries.length})</TabsTrigger>
             <TabsTrigger value="favorites" className="gap-2"><Heart className="h-4 w-4" />Favorites</TabsTrigger>
             <TabsTrigger value="complaints" className="gap-2"><MessageSquare className="h-4 w-4" />Complaints</TabsTrigger>
             <TabsTrigger value="notifications" className="gap-2"><Bell className="h-4 w-4" />Notifications</TabsTrigger>
@@ -109,6 +119,30 @@ const BuyerDashboard = () => {
             )}
           </TabsContent>
 
+          <TabsContent value="enquiries">
+            {enquiries.length === 0 ? (
+              <div className="rounded-2xl border border-dashed p-12 text-center text-muted-foreground"><Send className="mx-auto mb-3 h-8 w-8" />No enquiries yet. Browse properties and send enquiries!</div>
+            ) : (
+              <div className="space-y-4">
+                {enquiries.map(e => (
+                  <div key={e.id} className="rounded-xl border p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-heading font-semibold">{e.properties?.title || 'Property'}</p>
+                        <p className="text-sm text-muted-foreground">{e.properties?.location}</p>
+                        <p className="mt-2 text-sm">{e.message}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{format(new Date(e.created_at), 'MMM dd, yyyy HH:mm')}</p>
+                      </div>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${e.status === 'accepted' ? 'bg-success/10 text-success' : e.status === 'rejected' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}`}>
+                        {e.status === 'accepted' ? '✅ Accepted' : e.status === 'rejected' ? '❌ Rejected' : '🟡 Pending'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
           <TabsContent value="favorites">
             {favorites.length === 0 ? (
               <div className="rounded-2xl border border-dashed p-12 text-center text-muted-foreground"><Heart className="mx-auto mb-3 h-8 w-8" />No favorites yet</div>
@@ -125,15 +159,12 @@ const BuyerDashboard = () => {
 
           <TabsContent value="complaints">
             <div className="max-w-lg space-y-4">
-              <div className="space-y-3">
-                <select value={complaintPropertyId} onChange={e => setComplaintPropertyId(e.target.value)}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm">
-                  <option value="">Select a property (optional)</option>
-                  {bookings.map(b => (<option key={b.property_id} value={b.property_id}>{b.properties?.title}</option>))}
-                </select>
-                <Textarea value={complaintMsg} onChange={e => setComplaintMsg(e.target.value)} placeholder="Describe your issue..." rows={4} />
-                <Button onClick={submitComplaint}>Submit Complaint</Button>
-              </div>
+              <select value={complaintPropertyId} onChange={e => setComplaintPropertyId(e.target.value)} className="w-full rounded-lg border bg-background px-3 py-2 text-sm">
+                <option value="">Select a property (optional)</option>
+                {bookings.map(b => (<option key={b.property_id} value={b.property_id}>{b.properties?.title}</option>))}
+              </select>
+              <Textarea value={complaintMsg} onChange={e => setComplaintMsg(e.target.value)} placeholder="Describe your issue..." rows={4} />
+              <Button onClick={submitComplaint}>Submit Complaint</Button>
             </div>
           </TabsContent>
 

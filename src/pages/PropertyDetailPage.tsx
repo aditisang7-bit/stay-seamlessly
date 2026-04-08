@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SEOHead from '@/components/SEOHead';
 import ShareButtons from '@/components/ShareButtons';
 import Footer from '@/components/Footer';
+import EnquiryButton from '@/components/EnquiryButton';
 import type { DateRange } from 'react-day-picker';
 
 const PropertyDetailPage = () => {
@@ -393,6 +394,8 @@ const PropertyDetailPage = () => {
               <Button className="w-full" size="lg" onClick={handleBooking} disabled={bookingLoading || pricing.total <= 0}>
                 {bookingLoading ? 'Processing...' : pricing.total > 0 ? `Book · ₹${pricing.total.toLocaleString()}` : 'Select dates to book'}
               </Button>
+
+              <EnquiryButton propertyId={id!} sellerId={property.seller_id} propertyTitle={property.title} />
             </div>
           </div>
         </div>
