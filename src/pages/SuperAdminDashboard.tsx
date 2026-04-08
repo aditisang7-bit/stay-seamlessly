@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { BarChart3, Users, Home, Calendar, CreditCard, ShieldCheck, MessageSquare, Eye, Settings, ScrollText, Ban, UserPlus, Clock, XCircle, CheckCircle } from 'lucide-react';
+import { BarChart3, Users, Home, Calendar, CreditCard, ShieldCheck, MessageSquare, Eye, Settings, ScrollText, Ban, UserPlus, Clock, XCircle, CheckCircle, FileText, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import SupportBanner from '@/components/SupportBanner';
 
@@ -23,6 +23,8 @@ const SuperAdminDashboard = () => {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [disqualifications, setDisqualifications] = useState<any[]>([]);
   const [docsByProp, setDocsByProp] = useState<Record<string, any[]>>({});
+  const [sellerDocs, setSellerDocs] = useState<any[]>([]);
+  const [enquiries, setEnquiries] = useState<any[]>([]);
   const [approvalTab, setApprovalTab] = useState('pending');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -44,7 +46,7 @@ const SuperAdminDashboard = () => {
   const [featureEnabled, setFeatureEnabled] = useState(true);
 
   const fetchData = async () => {
-    const [propsRes, bookingsRes, paymentsRes, usersRes, rolesRes, logsRes, disqRes] = await Promise.all([
+    const [propsRes, bookingsRes, paymentsRes, usersRes, rolesRes, logsRes, disqRes, enquiriesRes, sellerDocsRes] = await Promise.all([
       supabase.from('properties').select('*'),
       supabase.from('bookings').select('*, properties(title)'),
       supabase.from('payments').select('*, bookings(reference_id, properties(title))'),
@@ -52,6 +54,8 @@ const SuperAdminDashboard = () => {
       supabase.from('user_roles').select('*'),
       supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(50),
       supabase.from('user_disqualifications').select('*').order('created_at', { ascending: false }),
+      supabase.from('enquiries').select('*, properties(title, location)').order('created_at', { ascending: false }),
+      supabase.from('seller_documents').select('*').order('created_at', { ascending: false }),
     ]);
 
     const props = propsRes.data || [];
@@ -71,6 +75,8 @@ const SuperAdminDashboard = () => {
     setRoles(allRoles);
     setAuditLogs(logsRes.data || []);
     setDisqualifications(disqRes.data || []);
+    setEnquiries(enquiriesRes.data || []);
+    setSellerDocs(sellerDocsRes.data || []);
     setStats({ properties: props.length, users: allUsers.length, bookings: books.length, revenue, pending: pending.length, approved: approved.length, rejected: rejected.length });
 
     // Fetch docs for all properties (not just pending)
