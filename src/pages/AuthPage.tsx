@@ -69,6 +69,13 @@ const AuthPage = () => {
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
+            {!isSignup && (
+              <div className="text-right">
+                <a href="/forgot-password" className="text-xs font-medium text-primary hover:underline">
+                  Forgot password?
+                </a>
+              </div>
+            )}
           </div>
 
           {isSignup && (
