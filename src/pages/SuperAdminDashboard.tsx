@@ -248,6 +248,8 @@ const SuperAdminDashboard = () => {
             <TabsTrigger value="messages" className="gap-2"><MessageSquare className="h-4 w-4" />Messages</TabsTrigger>
             <TabsTrigger value="features" className="gap-2"><Settings className="h-4 w-4" />Feature Control</TabsTrigger>
             <TabsTrigger value="payments" className="gap-2"><CreditCard className="h-4 w-4" />Payments</TabsTrigger>
+            <TabsTrigger value="enquiries" className="gap-2"><Send className="h-4 w-4" />Enquiries</TabsTrigger>
+            <TabsTrigger value="seller-docs" className="gap-2"><FileText className="h-4 w-4" />Seller Docs</TabsTrigger>
             <TabsTrigger value="disqualified" className="gap-2"><Ban className="h-4 w-4" />Disqualified</TabsTrigger>
             <TabsTrigger value="audit" className="gap-2"><ScrollText className="h-4 w-4" />Audit Logs</TabsTrigger>
           </TabsList>
