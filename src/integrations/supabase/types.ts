@@ -165,6 +165,47 @@ export type Database = {
           },
         ]
       }
+      enquiries: {
+        Row: {
+          buyer_id: string
+          created_at: string
+          id: string
+          message: string | null
+          property_id: string
+          seller_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          buyer_id: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          property_id: string
+          seller_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          buyer_id?: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          property_id?: string
+          seller_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enquiries_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorites: {
         Row: {
           created_at: string
@@ -262,28 +303,61 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          budget_max: number | null
+          budget_min: number | null
           created_at: string
           email: string | null
+          furnishing_preference: string | null
+          has_backup: boolean | null
+          has_corridor: boolean | null
           id: string
+          kitchen_type: string | null
+          location_preferred: string | null
+          move_in_date: string | null
           name: string
+          parking_type: string | null
+          profile_completed: boolean | null
+          toilet_type: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          budget_max?: number | null
+          budget_min?: number | null
           created_at?: string
           email?: string | null
+          furnishing_preference?: string | null
+          has_backup?: boolean | null
+          has_corridor?: boolean | null
           id?: string
+          kitchen_type?: string | null
+          location_preferred?: string | null
+          move_in_date?: string | null
           name?: string
+          parking_type?: string | null
+          profile_completed?: boolean | null
+          toilet_type?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          budget_max?: number | null
+          budget_min?: number | null
           created_at?: string
           email?: string | null
+          furnishing_preference?: string | null
+          has_backup?: boolean | null
+          has_corridor?: boolean | null
           id?: string
+          kitchen_type?: string | null
+          location_preferred?: string | null
+          move_in_date?: string | null
           name?: string
+          parking_type?: string | null
+          profile_completed?: boolean | null
+          toilet_type?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -292,6 +366,8 @@ export type Database = {
       properties: {
         Row: {
           amenities: string[] | null
+          availability_status: string | null
+          brokerage: number | null
           created_at: string
           description: string | null
           id: string
@@ -302,17 +378,22 @@ export type Database = {
           min_rental_months: number | null
           monthly_rent: number | null
           price: number
+          property_type: string | null
           rating: number | null
           review_count: number | null
           security_deposit: number | null
           seller_id: string
+          society_name: string | null
           title: string
+          unit_type: string | null
           updated_at: string
           verification_status: string
           video_url: string | null
         }
         Insert: {
           amenities?: string[] | null
+          availability_status?: string | null
+          brokerage?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -323,17 +404,22 @@ export type Database = {
           min_rental_months?: number | null
           monthly_rent?: number | null
           price?: number
+          property_type?: string | null
           rating?: number | null
           review_count?: number | null
           security_deposit?: number | null
           seller_id: string
+          society_name?: string | null
           title: string
+          unit_type?: string | null
           updated_at?: string
           verification_status?: string
           video_url?: string | null
         }
         Update: {
           amenities?: string[] | null
+          availability_status?: string | null
+          brokerage?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -344,11 +430,14 @@ export type Database = {
           min_rental_months?: number | null
           monthly_rent?: number | null
           price?: number
+          property_type?: string | null
           rating?: number | null
           review_count?: number | null
           security_deposit?: number | null
           seller_id?: string
+          society_name?: string | null
           title?: string
+          unit_type?: string | null
           updated_at?: string
           verification_status?: string
           video_url?: string | null
@@ -424,6 +513,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      seller_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          document_url: string
+          id: string
+          rejection_reason: string | null
+          seller_id: string
+          updated_at: string
+          verification_status: string
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          document_url: string
+          id?: string
+          rejection_reason?: string | null
+          seller_id: string
+          updated_at?: string
+          verification_status?: string
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          document_url?: string
+          id?: string
+          rejection_reason?: string | null
+          seller_id?: string
+          updated_at?: string
+          verification_status?: string
+          verified_by?: string | null
+        }
+        Relationships: []
       }
       user_disqualifications: {
         Row: {
