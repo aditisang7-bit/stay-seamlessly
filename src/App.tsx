@@ -18,6 +18,8 @@ import PropertyCheckerDashboard from "@/pages/PropertyCheckerDashboard";
 import FavoritesPage from "@/pages/FavoritesPage";
 import PunePage from "@/pages/PunePage";
 import AreaPage from "@/pages/AreaPage";
+import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +35,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/properties" element={<PropertiesPage />} />
             <Route path="/property/:id" element={<PropertyDetailPage />} />
             <Route path="/buyer" element={<RouteGuard allowedRoles={['buyer', 'seller', 'admin', 'super_admin']}><BuyerDashboard /></RouteGuard>} />
